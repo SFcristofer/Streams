@@ -21,6 +21,7 @@ export default function Home() {
       <Head>
         <title>ChillStream | El Futuro del Streaming Privado</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="monetag" content="1bf7de0e5d82214d04d3f33630f95539" />
       </Head>
 
       <nav className="navbar">
