@@ -46,7 +46,7 @@ export default function Home() {
                   type="text" 
                   placeholder="Nombre del streamer..." 
                   value={streamerName}
-                  onChange={(e) => setInputValue(e.target.value)} // Corregido: streamerName
+                  onChange={(e) => setStreamerName(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && goToStream()}
                 />
                 <button className="primary-btn" onClick={goToStream}>Entrar 🔓</button>
@@ -57,10 +57,12 @@ export default function Home() {
 
         {/* Banner estático NO intrusivo al final */}
         <div className="ad-footer-home">
-          <Script id="banner-home" strategy="afterInteractive">
-            {`atOptions = { 'key' : '1da0e70a20c4240ea69ce193167c37f5', 'format' : 'iframe', 'height' : 50, 'width' : 320, 'params' : {} };`}
-          </Script>
-          <Script src="https://www.highperformanceformat.com/1da0e70a20c4240ea69ce193167c37f5/invoke.js" strategy="afterInteractive" />
+          <div id="at-options-wrapper">
+            <Script id="banner-home-options" strategy="afterInteractive">
+              {`atOptions = { 'key' : '1da0e70a20c4240ea69ce193167c37f5', 'format' : 'iframe', 'height' : 50, 'width' : 320, 'params' : {} };`}
+            </Script>
+            <Script src="https://www.highperformanceformat.com/1da0e70a20c4240ea69ce193167c37f5/invoke.js" strategy="afterInteractive" />
+          </div>
         </div>
       </main>
 
@@ -77,9 +79,10 @@ export default function Home() {
         .grid { width: 100%; max-width: 500px; }
         .card { background: var(--card-bg); border: 1px solid #222; border-radius: 20px; padding: 2rem; }
         .input-group { display: flex; gap: 10px; margin-top: 1rem; }
-        input { flex: 1; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 12px; color: #fff; }
+        input { flex: 1; background: #111; border: 1px solid #333; border-radius: 10px; padding: 12px; color: #fff; outline: none; }
+        input:focus { border-color: var(--primary); }
         .primary-btn { background: var(--primary); color: #fff; border: none; border-radius: 10px; padding: 12px 20px; font-weight: bold; cursor: pointer; }
-        .ad-footer-home { margin-top: 3rem; opacity: 0.5; }
+        .ad-footer-home { margin-top: 3rem; min-height: 50px; }
       `}</style>
     </div>
   );
