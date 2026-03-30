@@ -8,9 +8,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.100.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "sequelize": "^6.37.8",
+    "sqlite3": "^6.0.1",
     "video.js": "^7.20.3",
     "videojs-contrib-ads": "^6.9.0",
     "videojs-ima": "^1.11.0"
