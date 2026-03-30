@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import { useEffect, useRef } from 'react';
 import Head from 'next/head';
+import Script from 'next/script';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 
@@ -61,20 +62,26 @@ export default function StreamRoom() {
               <h2>🔴 En Vivo: {username}</h2>
               <p>Calidad: HD | Servidor: Cloudflare Pro</p>
             </div>
-            <button className="btn-action donate" onClick={() => alert('¡Gracias por tu apoyo! 💎')}>Apoyar 💎</button>
+            <button className="btn-action donate">Apoyar 💎</button>
           </div>
         </section>
 
         <aside className="sidebar">
-          <div className="chat-container">
+          {/* BANNER PASIVO REAL DESDE x.txt */}
+          <div className="passive-sidebar-ad">
+            <span className="ad-label">Sponsor</span>
+            <div id="container-d9776db8a2d68a75a0f93175459f95a7">
+              <Script 
+                src="https://pl29013553.profitablecpmratenetwork.com/d9776db8a2d68a75a0f93175459f95a7/invoke.js"
+                strategy="afterInteractive"
+                data-cfasync="false"
+              />
+            </div>
+          </div>
+
+          <div className="chat-dummy">
             <div className="chat-header">CHAT EN VIVO</div>
-            <div className="chat-messages">
-              <div className="message"><span className="system-user">System:</span> ¡Bienvenido a la sala de {username}! Disfruta del stream sin anuncios.</div>
-            </div>
-            <div className="chat-input-placeholder">
-              <input type="text" placeholder="Escribe un mensaje..." disabled />
-              <button disabled>✈️</button>
-            </div>
+            <div className="chat-msg">System: ¡Bienvenido a la sala! Disfruta del stream.</div>
           </div>
         </aside>
       </main>
@@ -96,15 +103,13 @@ export default function StreamRoom() {
         .details-card p { margin: 5px 0 0 0; font-size: 0.7rem; color: #444; }
         
         .sidebar { display: flex; flex-direction: column; gap: 10px; height: 100%; }
-        .chat-container { flex: 1; background: var(--card); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+        
+        .passive-sidebar-ad { background: var(--card); border-radius: 12px; padding: 10px; border: 1px solid var(--border); text-align: center; min-height: 250px; }
+        .ad-label { font-size: 0.5rem; color: #333; display: block; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
+
+        .chat-dummy { flex: 1; background: var(--card); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
         .chat-header { padding: 10px; background: #111; text-align: center; font-size: 0.6rem; color: #444; font-weight: 900; letter-spacing: 1px; border-bottom: 1px solid var(--border); }
-        .chat-messages { flex: 1; padding: 10px; font-size: 0.75rem; }
-        .system-user { color: var(--primary); font-weight: bold; margin-right: 5px; }
-        
-        .chat-input-placeholder { padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 5px; opacity: 0.5; }
-        .chat-input-placeholder input { flex: 1; background: #000; border: 1px solid var(--border); color: #fff; padding: 8px; border-radius: 5px; }
-        .chat-input-placeholder button { background: var(--primary); border: none; color: #fff; padding: 0 10px; border-radius: 5px; }
-        
+        .chat-msg { padding: 10px; font-size: 0.75rem; color: #666; }
         .btn-action.donate { background: #ffd700; color: #000; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
       `}</style>
     </div>

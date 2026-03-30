@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import { useState } from 'react';
+import Script from 'next/script';
 
 export default function Home() {
   const [streamerName, setStreamerName] = useState('');
@@ -13,7 +14,7 @@ export default function Home() {
   return (
     <div className="container">
       <Head>
-        <title>ChillStream | Streaming Privado</title>
+        <title>ChillStream | Elite Streaming</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -22,9 +23,21 @@ export default function Home() {
       </nav>
 
       <main>
+        {/* Banner Pasivo desde x.txt */}
+        <div className="passive-banner-wrapper">
+          <span className="ad-tag">Publicidad</span>
+          <div id="container-d9776db8a2d68a75a0f93175459f95a7">
+            <Script 
+              src="https://pl29013553.profitablecpmratenetwork.com/d9776db8a2d68a75a0f93175459f95a7/invoke.js"
+              strategy="afterInteractive"
+              data-cfasync="false"
+            />
+          </div>
+        </div>
+
         <div className="hero">
           <h1 className="title">Streaming <span className="gradient-text">Privado</span></h1>
-          <p className="description">La mejor calidad sin interrupciones. Solo contenido directo.</p>
+          <p className="description">Contenido exclusivo para amigos, sin interrupciones.</p>
         </div>
 
         <div className="grid">
@@ -45,16 +58,19 @@ export default function Home() {
       </main>
 
       <style jsx global>{`
-        :root { --primary: #0070f3; --bg: #050505; --text: #fff; }
+        :root { --primary: #0070f3; --bg: #050505; --card: #111; --text: #fff; }
         body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; }
         .container { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .navbar { position: absolute; top: 0; padding: 1.5rem; width: 100%; text-align: center; }
         .logo { font-weight: 800; font-size: 1.2rem; color: var(--primary); }
         
+        .passive-banner-wrapper { margin-bottom: 2rem; text-align: center; background: #0a0a0a; padding: 10px; border-radius: 12px; border: 1px solid #222; min-width: 300px; min-height: 100px; }
+        .ad-tag { font-size: 0.6rem; color: #444; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 8px; }
+
         .title { font-size: 3.5rem; font-weight: 900; margin: 0; }
         .gradient-text { background: linear-gradient(90deg, #0070f3, #00dfd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .description { color: #555; font-size: 1.1rem; }
-        .card { background: #111; padding: 2rem; border-radius: 20px; border: 1px solid #222; width: 400px; margin-top: 2rem; }
+        .description { color: #555; font-size: 1.1rem; margin-top: 0.5rem; }
+        .card { background: #111; padding: 2rem; border-radius: 20px; border: 1px solid #222; width: 400px; margin-top: 1rem; }
         .input-group { display: flex; gap: 10px; margin-top: 1rem; }
         input { flex: 1; background: #000; border: 1px solid #333; padding: 12px; color: #fff; border-radius: 10px; outline: none; }
         .primary-btn { background: var(--primary); color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-weight: bold; cursor: pointer; }
