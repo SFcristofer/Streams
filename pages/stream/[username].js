@@ -42,24 +42,11 @@ export default function StreamRoom() {
     setNewMessage('');
   };
 
-  // Contenedor para el banner superior
-  const topAdHtml = `
-    <html>
-      <body style="margin:0; padding:0; display:flex; justify-content:center; background:transparent;">
-        <div id="container-d9776db8a2d68a75a0f93175459f95a7"></div>
-        <script async="async" data-cfasync="false" src="/api/sys-module?v=${syncTick}"></script>
-      </body>
-    </html>
-  `;
-
-  // Contenedor para el banner inferior
-  const botAdHtml = `
-    <html>
-      <body style="margin:0; padding:0; display:flex; justify-content:center; background:transparent;">
-        <iframe src="/api/provider?key=2a3357726d5ea2f9e1aad0f54a5ca4db&v=${syncTick}" width="100%" height="250" style="border:none; border-radius:15px;"></iframe>
-      </body>
-    </html>
-  `;
+  const recommendedStreams = [
+    { id: 1, name: 'Cristian', viewers: '1.2k', title: 'Chill & Games 🎮', thumb: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=400&q=80' },
+    { id: 2, name: 'Elite_Gamer', viewers: '850', title: 'Noche de Terror 👻', thumb: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=400&q=80' },
+    { id: 3, name: 'Relax_Mode', viewers: '2.4k', title: 'Solo Música para Estudiar 🎧', thumb: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=400&q=80' },
+  ];
 
   if (loading) return <div className="loading">Conectando con la base de datos...</div>;
 
@@ -88,11 +75,28 @@ export default function StreamRoom() {
             </div>
             <button className="btn-donate">DONAR 💎</button>
           </div>
+          <div className="extra-content">
+            <div className="section-header"><h3>Streams Recomendados</h3><div className="line"></div></div>
+            <div className="recommended-grid">
+              {recommendedStreams.map(stream => (
+                <div key={stream.id} className="rec-card" onClick={() => window.location.href = `/stream/${stream.name.toLowerCase()}`}>
+                  <img src={stream.thumb} alt={stream.title} /><div className="rec-info"><h4>{stream.title}</h4><p>{stream.name} • {stream.viewers} viewers</p></div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <aside className="sidebar">
           <div className="module-wrapper">
-            <iframe key={`u-${syncTick}`} srcDoc={topAdHtml} width="100%" height="250" style={{ border: 'none' }} sandbox="allow-scripts allow-forms allow-same-origin" />
+            <iframe 
+              key={`u-${syncTick}`} 
+              src={`/api/sys-module?v=${syncTick}`} 
+              width="100%" 
+              height="250" 
+              style={{ border: 'none' }} 
+              sandbox="allow-scripts allow-forms allow-same-origin" 
+            />
           </div>
           <div className="chat-box">
             <div className="chat-header">CHAT EN VIVO</div>
@@ -107,7 +111,14 @@ export default function StreamRoom() {
             </form>
           </div>
           <div className="module-wrapper">
-            <iframe key={`l-${syncTick}`} srcDoc={botAdHtml} width="100%" height="250" style={{ border: 'none' }} sandbox="allow-scripts allow-forms allow-same-origin" />
+            <iframe 
+              key={`l-${syncTick}`} 
+              src={`/api/provider?key=2a3357726d5ea2f9e1aad0f54a5ca4db&v=${syncTick}`} 
+              width="100%" 
+              height="250" 
+              style={{ border: 'none', borderRadius: '15px' }} 
+              sandbox="allow-scripts allow-forms allow-same-origin" 
+            />
           </div>
         </aside>
       </main>
@@ -124,6 +135,18 @@ export default function StreamRoom() {
         .video-wrapper { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
         .no-stream { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #333; }
         .details-bar { padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; background: #050505; border-bottom: 1px solid var(--border); }
+        .extra-content { padding: 2rem; background: #050505; }
+        .section-header { display: flex; align-items: center; gap: 15px; margin-bottom: 1.5rem; }
+        .section-header h3 { font-size: 1.2rem; white-space: nowrap; margin: 0; color: #555; }
+        .section-header .line { height: 1px; background: var(--border); flex: 1; }
+        .recommended-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
+        .rec-card { background: #0a0a0a; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; transition: 0.3s; }
+        .rec-card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .rec-card img { width: 100%; height: 140px; object-fit: cover; }
+        .rec-info { padding: 12px; }
+        .rec-info h4 { margin: 0; font-size: 0.9rem; }
+        .rec-info p { margin: 5px 0 0 0; font-size: 0.75rem; color: #555; }
+
         .streamer-info { display: flex; align-items: center; gap: 15px; }
         .avatar { width: 45px; height: 45px; background: var(--primary); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-weight: 900; }
         .sidebar { background: #080808; display: flex; flex-direction: column; padding: 1rem; gap: 1rem; height: 100%; overflow-y: auto; }
