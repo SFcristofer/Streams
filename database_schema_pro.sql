@@ -1,40 +1,50 @@
--- ESQUEMA PROFESIONAL, INMORTAL Y ECONÓMICO PARA CHILLSTREAM
--- Este script configura tablas, seguridad, realtime y economía.
+-- ESQUEMA DEFINITIVO Y ROBUSTO PARA CHILLSTREAM
+-- Este script asegura que todas las tablas y columnas existan sin borrar datos.
 
 create extension if not exists "uuid-ossp";
 
+-- ==========================================
 -- 1. TABLA DE PERFILES (Identidad y Wallet)
+-- ==========================================
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   username text unique not null,
-  full_name text,
-  avatar_url text,
-  bio text,
-  twitter_url text,
-  instagram_url text,
-  discord_url text,
-  paypal_url text,
-  kofi_url text,
-  flow_balance decimal(10,2) default 100.00, -- Moneda Real
-  chill_points integer default 0,           -- Moneda Social (Gratis)
-  role text default 'user' check (role in ('user', 'streamer', 'admin')),
-  is_premium boolean default false,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. TABLA DE CANALES (Configuración del Stream)
+-- FORZAR columnas si la tabla ya existía de versiones anteriores
+alter table public.profiles add column if not exists full_name text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists twitter_url text;
+alter table public.profiles add column if not exists instagram_url text;
+alter table public.profiles add column if not exists discord_url text;
+alter table public.profiles add column if not exists paypal_url text;
+alter table public.profiles add column if not exists kofi_url text;
+alter table public.profiles add column if not exists flow_balance decimal(10,2) default 100.00;
+alter table public.profiles add column if not exists chill_points integer default 0;
+alter table public.profiles add column if not exists role text default 'user' check (role in ('user', 'streamer', 'admin'));
+alter table public.profiles add column if not exists is_premium boolean default false;
+
+-- ==========================================
+-- 2. TABLA DE CANALES (Streaming)
+-- ==========================================
 create table if not exists public.streams (
   id uuid default uuid_generate_v4() primary key,
-  streamer_id uuid references profiles(id) on delete cascade not null unique,
-  stream_key text,
-  title text default 'Mi primer directo en ChillStream',
-  category text default 'Charlando',
-  is_live boolean default false,
-  viewers_count integer default 0,
+  streamer_id uuid references public.profiles(id) on delete cascade not null unique,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 3. TABLA DE MENSAJES (Chat Realtime)
+-- FORZAR columnas de configuración de stream
+alter table public.streams add column if not exists stream_key text;
+alter table public.streams add column if not exists title text default 'Mi primer directo en ChillStream';
+alter table public.streams add column if not exists category text default 'Charlando';
+alter table public.streams add column if not exists is_live boolean default false;
+alter table public.streams add column if not exists viewers_count integer default 0;
+
+-- ==========================================
+-- 3. TABLA DE MENSAJES (Chat)
+-- ==========================================
 create table if not exists public.messages (
   id uuid default uuid_generate_v4() primary key,
   stream_id uuid references public.streams(id) on delete cascade not null,
@@ -44,18 +54,22 @@ create table if not exists public.messages (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 4. HABILITAR SEGURIDAD (RLS)
+-- ==========================================
+-- 4. SEGURIDAD Y REALTIME
+-- ==========================================
 alter table public.profiles enable row level security;
 alter table public.streams enable row level security;
 alter table public.messages enable row level security;
 
--- 5. HABILITAR TIEMPO REAL (Realtime)
+-- Habilitar Realtime
 begin;
   drop publication if exists supabase_realtime;
   create publication supabase_realtime for table public.messages;
 commit;
 
--- 6. POLÍTICAS DE SEGURIDAD (Permisos)
+-- ==========================================
+-- 5. POLÍTICAS DE SEGURIDAD (RLS)
+-- ==========================================
 
 -- Perfiles
 drop policy if exists "Permitir insertar perfil" on public.profiles;
@@ -77,7 +91,9 @@ create policy "Ver mensajes de la sala" on public.messages for select using (tru
 drop policy if exists "Enviar mensajes al chat" on public.messages;
 create policy "Enviar mensajes al chat" on public.messages for insert with check (auth.uid() = user_id);
 
--- 7. MOTOR DE ECONOMÍA: FUNCIÓN DE DONACIÓN (RPC)
+-- ==========================================
+-- 6. MOTOR DE DONACIONES (Función RPC)
+-- ==========================================
 create or replace function donate_flow(
   streamer_username text,
   amount_to_send decimal
