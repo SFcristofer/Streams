@@ -179,7 +179,16 @@ export const profileService = {
       .eq('id', user.id);
     if (pError) throw pError;
 
-    // 3. Registrar el canje y avisar al chat
+    // 3. Registrar el canje en el historial de retos del streamer
+    const { error: rError } = await supabase.from('reward_redemptions').insert([{
+      reward_id: reward.id,
+      user_id: user.id,
+      streamer_id: streamerId,
+      status: 'pending'
+    }]);
+    if (rError) throw rError;
+
+    // 4. Avisar al chat
     const { error: mError } = await supabase.from('messages').insert([{
       stream_id: streamId,
       user_id: user.id,
@@ -189,5 +198,28 @@ export const profileService = {
     if (mError) throw mError;
 
     return { success: true };
+  },
+
+  // Obtener canjes pendientes (para el streamer)
+  async getPendingRedemptions() {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('reward_redemptions')
+      .select('*, reward:channel_rewards(title, icon, cost), sender:profiles!reward_redemptions_user_id_fkey(username)')
+      .eq('streamer_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  // Marcar reto como completado
+  async completeRedemption(id) {
+    const { error } = await supabase
+      .from('reward_redemptions')
+      .update({ status: 'completed' })
+      .eq('id', id);
+    if (error) throw error;
+    return true;
   }
 };

@@ -1,31 +1,28 @@
--- ESQUEMA PROFESIONAL, INMORTAL Y ULTRA-SEGURO PARA CHILLSTREAM
--- Este script se puede ejecutar infinitas veces sin errores de duplicados.
+-- ESQUEMA INTEGRAL CHILLSTREAM: ECONOMÍA, REALTIME Y VOZ (TTS)
+-- Este script es seguro para ejecutar múltiples veces.
 
 create extension if not exists "uuid-ossp";
 
 -- ==========================================
--- 1. TABLA DE PERFILES (Identidad y Wallet)
+-- 1. TABLA DE PERFILES
 -- ==========================================
 create table if not exists public.profiles (
   id uuid references auth.users on delete cascade primary key,
   username text unique not null,
-  full_name text,
-  avatar_url text,
-  bio text,
-  twitter_url text,
-  instagram_url text,
-  discord_url text,
-  paypal_url text,
-  kofi_url text,
-  flow_balance decimal(10,2) default 100.00,
-  chill_points integer default 0,
-  role text default 'user' check (role in ('user', 'streamer', 'admin')),
-  is_premium boolean default false,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Asegurar columnas dinámicas
+alter table public.profiles add column if not exists full_name text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists flow_balance decimal(10,2) default 100.00;
+alter table public.profiles add column if not exists chill_points integer default 0;
+alter table public.profiles add column if not exists tts_enabled boolean default true;
+alter table public.profiles add column if not exists role text default 'user';
+
 -- ==========================================
--- 2. TABLA DE CANALES (Streaming)
+-- 2. TABLA DE CANALES
 -- ==========================================
 create table if not exists public.streams (
   id uuid default uuid_generate_v4() primary key,
@@ -34,12 +31,11 @@ create table if not exists public.streams (
   title text default 'Mi primer directo en ChillStream',
   category text default 'Charlando',
   is_live boolean default false,
-  viewers_count integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- ==========================================
--- 3. TABLA DE RECOMPENSAS (Tienda del Canal)
+-- 3. TABLA DE RECOMPENSAS (Tienda Personalizada)
 -- ==========================================
 create table if not exists public.channel_rewards (
   id uuid default uuid_generate_v4() primary key,
@@ -47,12 +43,26 @@ create table if not exists public.channel_rewards (
   title text not null,
   cost integer not null default 1000,
   icon text default '🎁',
+  type text default 'challenge', -- NUEVA COLUMNA: challenge o tts
   is_active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- ==========================================
--- 4. TABLA DE MENSAJES (Chat)
+-- 4. TABLA DE CANJES/RETOS (Redemptions)
+-- ==========================================
+create table if not exists public.reward_redemptions (
+  id uuid default uuid_generate_v4() primary key,
+  reward_id uuid references public.channel_rewards(id) on delete cascade not null,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  streamer_id uuid references public.profiles(id) on delete cascade not null,
+  user_input text, -- Texto opcional enviado por el viewer
+  status text default 'pending',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ==========================================
+-- 5. TABLA DE MENSAJES (Chat Realtime)
 -- ==========================================
 create table if not exists public.messages (
   id uuid default uuid_generate_v4() primary key,
@@ -64,7 +74,7 @@ create table if not exists public.messages (
 );
 
 -- ==========================================
--- 5. TABLA DE DONACIONES (Historial)
+-- 6. TABLA DE DONACIONES (Contabilidad)
 -- ==========================================
 create table if not exists public.donations (
   id uuid default uuid_generate_v4() primary key,
@@ -75,75 +85,40 @@ create table if not exists public.donations (
 );
 
 -- ==========================================
--- 6. SEGURIDAD, REALTIME Y POLÍTICAS (Idempotentes)
+-- 7. SEGURIDAD Y REALTIME
 -- ==========================================
 alter table public.profiles enable row level security;
 alter table public.streams enable row level security;
 alter table public.messages enable row level security;
 alter table public.donations enable row level security;
 alter table public.channel_rewards enable row level security;
+alter table public.reward_redemptions enable row level security;
 
 -- Habilitar Realtime
 begin;
   drop publication if exists supabase_realtime;
-  create publication supabase_realtime for table public.messages;
+  create publication supabase_realtime for table 
+    public.profiles,
+    public.messages, 
+    public.reward_redemptions, 
+    public.donations;
 commit;
 
--- LIMPIEZA Y RECREACIÓN DE POLÍTICAS
+-- Limpieza y Recreación de Políticas (Idempotentes)
 do $$ 
 begin
-    -- Perfiles
     drop policy if exists "Ver perfiles" on public.profiles;
     create policy "Ver perfiles" on public.profiles for select using (true);
-    drop policy if exists "Editar propio perfil" on public.profiles;
-    create policy "Editar propio perfil" on public.profiles for update using (auth.uid() = id);
-    drop policy if exists "Crear perfil" on public.profiles;
-    create policy "Crear perfil" on public.profiles for insert with check (auth.uid() = id);
-
-    -- Recompensas
     drop policy if exists "Ver recompensas" on public.channel_rewards;
     create policy "Ver recompensas" on public.channel_rewards for select using (true);
     drop policy if exists "Manejar recompensas" on public.channel_rewards;
     create policy "Manejar recompensas" on public.channel_rewards for all using (auth.uid() = streamer_id);
-
-    -- Streams
-    drop policy if exists "Ver streams" on public.streams;
-    create policy "Ver streams" on public.streams for select using (true);
-    drop policy if exists "Manejar propio stream" on public.streams;
-    create policy "Manejar propio stream" on public.streams for all using (auth.uid() = streamer_id);
-
-    -- Mensajes y Donaciones
-    drop policy if exists "Ver mensajes" on public.messages;
-    create policy "Ver mensajes" on public.messages for select using (true);
-    drop policy if exists "Enviar mensajes" on public.messages;
-    create policy "Enviar mensajes" on public.messages for insert with check (auth.uid() = user_id);
-    drop policy if exists "Ver donaciones recibidas" on public.donations;
-    create policy "Ver donaciones recibidas" on public.donations for select using (auth.uid() = receiver_id);
+    drop policy if exists "Ver retos" on public.reward_redemptions;
+    create policy "Ver retos" on public.reward_redemptions for select using (auth.uid() = streamer_id);
+    drop policy if exists "Crear canje" on public.reward_redemptions;
+    create policy "Crear canje" on public.reward_redemptions for insert with check (auth.uid() = user_id);
+    drop policy if exists "Leer chat" on public.messages;
+    create policy "Leer chat" on public.messages for select using (true);
+    drop policy if exists "Hablar chat" on public.messages;
+    create policy "Hablar chat" on public.messages for insert with check (auth.uid() = user_id);
 end $$;
-
--- ==========================================
--- 7. MOTOR DE TRANSACCIONES PRO (Función RPC)
--- ==========================================
-create or replace function donate_flow(
-  streamer_username text,
-  amount_to_send decimal
-)
-returns void as $$
-declare
-  sender_id uuid := auth.uid();
-  receiver_id uuid;
-  current_stream_id uuid;
-begin
-  select id into receiver_id from public.profiles where username = streamer_username;
-  if sender_id = receiver_id then raise exception 'No puedes donar a tu propio canal.'; end if;
-  select id into current_stream_id from public.streams where streamer_id = receiver_id;
-  if (select flow_balance from public.profiles where id = sender_id) < amount_to_send then raise exception 'Saldo insuficiente'; end if;
-
-  update public.profiles set flow_balance = flow_balance - amount_to_send where id = sender_id;
-  update public.profiles set flow_balance = flow_balance + amount_to_send where id = receiver_id;
-  insert into public.donations (sender_id, receiver_id, amount) values (sender_id, receiver_id, amount_to_send);
-  insert into public.messages (stream_id, user_id, username, content)
-  values (current_stream_id, sender_id, (select username from public.profiles where id = sender_id), 
-         '🌊 ¡HA DONADO ' || amount_to_send || ' CHILL FLOW! 🌊');
-end;
-$$ language plpgsql security definer;
