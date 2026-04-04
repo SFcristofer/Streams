@@ -19,18 +19,40 @@ export default function StreamRoom() {
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
 
-  // Estados para donaciones
+  // Estados para donaciones y puntos
   const [showDonate, setShowDonate] = useState(false);
   const [donateAmount, setDonateAmount] = useState(10);
   const [isDonating, setIsDonating] = useState(false);
   const [toast, setToast] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    if (!router.isReady) return;
-    if (username) {
+    if (router.isReady && username) {
       fetchStreamerData();
     }
   }, [router.isReady, username]);
+
+  // MOTOR DE PUNTOS (Gana 10 CP cada 1 minuto)
+  useEffect(() => {
+    if (!currentUser || !streamInfo) return;
+
+    const pointsInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ chill_points: (currentUser.chill_points || 0) + 10 })
+          .eq('id', currentUser.id)
+          .select()
+          .single();
+        
+        if (!error && data) {
+          setCurrentUser(data);
+          console.log("¡+10 Chill Points ganados!");
+        }
+      } catch (err) { console.error("Error al sumar puntos:", err); }
+    }, 60000); // 1 minuto
+
+    return () => clearInterval(pointsInterval);
+  }, [currentUser?.id, streamInfo?.id]);
 
   const fetchStreamerData = async () => {
     setLoading(true);
@@ -42,56 +64,29 @@ export default function StreamRoom() {
       }
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('username', username).single();
-      if (!profile) {
-        setLoading(false);
-        return;
-      }
+      if (!profile) return setLoading(false);
       setStreamer(profile);
 
       const { data: sInfo } = await supabase.from('streams').select('*').eq('streamer_id', profile.id).single();
       setStreamInfo(sInfo);
 
       if (sInfo) {
-        // Cargar historial
         const { data: history } = await supabase.from('messages').select('*').eq('stream_id', sInfo.id).order('created_at', { ascending: true }).limit(50);
         if (history) setMessages(history.map(m => ({ id: m.id, user: m.username, text: m.content, mod: m.username === username })));
 
-        // Realtime
-        const channel = supabase.channel(`chat-${sInfo.id}`).on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages', 
-          filter: `stream_id=eq.${sInfo.id}` 
-        }, (payload) => {
-          setMessages(prev => [...prev, { 
-            id: payload.new.id, 
-            user: payload.new.username, 
-            text: payload.new.content, 
-            mod: payload.new.username === username 
-          }]);
+        const channel = supabase.channel(`chat-${sInfo.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `stream_id=eq.${sInfo.id}` }, (payload) => {
+          setMessages(prev => [...prev, { id: payload.new.id, user: payload.new.username, text: payload.new.content, mod: payload.new.username === username }]);
         }).subscribe();
 
         return () => { supabase.removeChannel(channel); };
       }
-    } catch (err) {
-      console.error("Error en sala:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   const handleSendMessage = async (text) => {
     if (!currentUser || !streamInfo) return;
-    try {
-      await supabase.from('messages').insert([{ 
-        stream_id: streamInfo.id, 
-        user_id: currentUser.id, 
-        username: currentUser.username, 
-        content: text 
-      }]);
-    } catch (err) {
-      console.error("Error enviando mensaje:", err);
-    }
+    await supabase.from('messages').insert([{ stream_id: streamInfo.id, user_id: currentUser.id, username: currentUser.username, content: text }]);
   };
 
   const handleDonate = async () => {
@@ -110,19 +105,9 @@ export default function StreamRoom() {
     }
   };
 
-  if (!router.isReady || loading) return (
-    <div className="h-screen w-full bg-[#050505] flex items-center justify-center font-black text-xs tracking-[5px] animate-pulse">
-      CONECTANDO...
-    </div>
-  );
+  if (loading) return <div className="h-screen w-full bg-black text-white flex items-center justify-center font-black text-xs tracking-[5px]">CHILLSTREAM...</div>;
 
-  if (!streamer) return (
-    <div className="h-screen w-full bg-black text-white flex flex-col items-center justify-center gap-4">
-      <h1 className="text-6xl font-black">404</h1>
-      <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">Canal inexistente</p>
-      <button onClick={() => router.push('/')} className="bg-blue-600 px-8 py-3 rounded-xl font-bold uppercase text-[10px]">Inicio</button>
-    </div>
-  );
+  if (!streamer) return <div className="h-screen w-full bg-black text-white flex flex-col items-center justify-center gap-4"><h1 className="text-6xl font-black">404</h1><button onClick={() => router.push('/')} className="bg-blue-600 px-8 py-3 rounded-xl font-bold">Inicio</button></div>;
 
   return (
     <div className="h-screen w-full bg-[#0e0e10] text-white flex flex-col overflow-hidden">
@@ -138,32 +123,37 @@ export default function StreamRoom() {
           <div className="p-8 pb-32">
             <div className="flex justify-between items-start gap-6">
               <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-600 shadow-xl">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-600">
                   <img src={streamer.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`} className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-black">{streamInfo?.title || 'Live Stream'}</h1>
-                  <p className="text-blue-400 font-bold text-sm">@{username} • <span className="text-zinc-500 uppercase text-xs tracking-widest">{streamInfo?.category}</span></p>
+                  <h1 className="text-2xl font-black">{streamInfo?.title || 'Mi directo'}</h1>
+                  <p className="text-blue-400 font-bold text-sm">@{username} • <span className="text-zinc-500 uppercase text-xs">{streamInfo?.category}</span></p>
                 </div>
               </div>
-              <button onClick={() => setShowDonate(true)} className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase shadow-xl hover:scale-[1.05] active:scale-95 transition-all">
-                APOYAR 🌊
-              </button>
+              <button onClick={() => setShowDonate(true)} className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase shadow-xl">APOYAR 🌊</button>
             </div>
             {streamer.bio && <p className="mt-8 text-zinc-400 text-sm leading-relaxed max-w-3xl bg-white/[0.02] p-8 rounded-3xl border border-white/5">{streamer.bio}</p>}
           </div>
         </section>
+{/* LADO DERECHO: CHAT */}
+<aside className="hidden lg:block w-[400px] h-full shrink-0 border-l border-white/5">
+  <Chat 
+    messages={messages} 
+    onSendMessage={handleSendMessage} 
+    chillPoints={currentUser?.chill_points || 0}
+    streamerId={streamer?.id}
+    streamId={streamInfo?.id}
+  />
+</aside>
 
-        <aside className="hidden lg:block w-[400px] h-full shrink-0 border-l border-white/5 bg-[#0e0e10]">
-          <Chat messages={messages} onSendMessage={handleSendMessage} />
-        </aside>
       </main>
 
       <Modal isOpen={showDonate} onClose={() => setShowDonate(false)} title="Donar Chill Flow">
         <div className="p-4 text-center">
           <div className="grid grid-cols-3 gap-4 mb-10">
             {[10, 50, 100].map(amt => (
-              <button key={amt} onClick={() => setDonateAmount(amt)} className={`p-6 rounded-2xl border-2 font-black transition-all ${donateAmount === amt ? 'border-blue-500 bg-blue-500/10' : 'border-white/5 text-zinc-500'}`}>{amt}</button>
+              <button key={amt} onClick={() => setDonateAmount(amt)} className={`p-6 rounded-2xl border-2 font-black transition-all ${donateAmount === amt ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-white/5 text-zinc-500'}`}>{amt}</button>
             ))}
           </div>
           <button onClick={handleDonate} disabled={isDonating} className="w-full bg-blue-600 py-5 rounded-2xl font-black text-xs uppercase shadow-xl">{isDonating ? '...' : `Donar ${donateAmount} CF`}</button>

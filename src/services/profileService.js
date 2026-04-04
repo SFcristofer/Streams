@@ -125,5 +125,69 @@ export const profileService = {
 
     if (error) throw error;
     return { success: true };
+  },
+
+  // --- GESTIÓN DE RECOMPENSAS (CHILL POINTS) ---
+  
+  // Obtener recompensas de un streamer
+  async getChannelRewards(streamerId) {
+    const { data, error } = await supabase
+      .from('channel_rewards')
+      .select('*')
+      .eq('streamer_id', streamerId)
+      .eq('is_active', true)
+      .order('cost', { ascending: true });
+    if (error) throw error;
+    return data;
+  },
+
+  // Crear una nueva recompensa
+  async addChannelReward(reward) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('channel_rewards')
+      .insert([{ ...reward, streamer_id: user.id }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Borrar una recompensa
+  async deleteChannelReward(rewardId) {
+    const { error } = await supabase
+      .from('channel_rewards')
+      .delete()
+      .eq('id', rewardId);
+    if (error) throw error;
+    return true;
+  },
+
+  // Canjear una recompensa (Gastar Chill Points)
+  async redeemReward(reward, streamerId, streamId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Inicia sesión para canjear');
+
+    // 1. Obtener puntos actuales
+    const profile = await this.getMyProfile();
+    if (profile.chill_points < reward.cost) throw new Error('No tienes suficientes Chill Points');
+
+    // 2. Restar puntos al usuario
+    const { error: pError } = await supabase
+      .from('profiles')
+      .update({ chill_points: profile.chill_points - reward.cost })
+      .eq('id', user.id);
+    if (pError) throw pError;
+
+    // 3. Registrar el canje y avisar al chat
+    const { error: mError } = await supabase.from('messages').insert([{
+      stream_id: streamId,
+      user_id: user.id,
+      username: profile.username,
+      content: `🎁 ¡HA CANJEADO: ${reward.title}! 🎁`
+    }]);
+    if (mError) throw mError;
+
+    return { success: true };
   }
 };
