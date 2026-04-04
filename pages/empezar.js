@@ -1,162 +1,155 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+import Navbar from '../src/components/Navbar';
+import Card from '../src/components/Card';
+import Step from '../src/components/Step';
+import Footer from '../src/components/Footer';
+import { profileService } from '../src/services/profileService';
+import { supabase } from '../src/lib/supabase';
 
 export default function EmpezarStream() {
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [credentials, setCredentials] = useState(null);
-  const [error, setError] = useState('');
+  const [profile, setProfile] = useState(null);
+  const [streamData, setStreamData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  const handleCreate = async () => {
-    setLoading(true);
-    setError('');
+  const PENTIUM_RTMP_URL = 'rtmp://192.168.100.24/ingest';
+
+  useEffect(() => {
+    checkStatus();
+  }, []);
+
+  const checkStatus = async () => {
     try {
-      const res = await fetch('/api/create-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ streamerName: name })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setCredentials(data);
+      const myProfile = await profileService.getMyProfile();
+      if (!myProfile) {
+        router.push('/login');
+        return;
+      }
+      
+      // Si no tiene username, mandarlo al dashboard para que elija uno (y se sincronice)
+      if (!myProfile.username) {
+        router.push('/dashboard');
+        return;
+      }
+
+      setProfile(myProfile);
+
+      // Obtener datos del stream desde Supabase
+      const { data: stream } = await supabase
+        .from('streams')
+        .select('*')
+        .eq('streamer_id', myProfile.id)
+        .maybeSingle();
+      
+      if (stream) {
+        setStreamData(stream);
+      }
     } catch (err) {
-      setError(err.message);
+      console.error("Error al cargar datos:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  if (loading) return (
+    <div className="h-screen w-full bg-[#050505] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+    </div>
+  );
+
   return (
-    <div className="container">
+    <div className="page-wrapper">
       <Head>
-        <title>Panel de Streamer | ChillStream</title>
+        <title>Centro de Transmisión | ChillStream</title>
       </Head>
 
-      <nav className="navbar">
-        <div className="logo" onClick={() => window.location.href = '/'}>🎮 Chill<span>Stream</span></div>
-      </nav>
+      <Navbar />
 
       <main className="content">
         <div className="setup-grid">
-          {/* LADO IZQUIERDO: FORMULARIO */}
-          <div className="card main-card">
-            {!credentials ? (
-              <>
-                <h1>Configura tu Sala 🚀</h1>
-                <p>Crea tu acceso privado a los servidores de Cloudflare.</p>
-                <div className="form">
-                  <input 
-                    type="text" 
-                    placeholder="Tu nombre de Streamer..." 
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                  <button onClick={handleCreate} disabled={loading || !name}>
-                    {loading ? 'CONECTANDO CON CLOUDFLARE...' : 'GENERAR CLAVES DE ACCESO'}
-                  </button>
-                  {error && <p className="error">{error}</p>}
-                </div>
-              </>
-            ) : (
+          {/* LADO IZQUIERDO: CREDENCIALES DIRECTAS */}
+          <Card 
+            title="Tu Cabina de Streaming 🎥" 
+            description="Aquí tienes todo lo que necesitas para salir al aire en la Red Pentium."
+          >
+            {streamData ? (
               <div className="credentials fade-in">
-                <div className="success-header">
-                  <span className="icon">✅</span>
-                  <h2>¡Sala Lista!</h2>
-                </div>
+                <div className="info-badge">CANAL VERIFICADO Y ACTIVO</div>
                 
                 <div className="cred-field">
-                  <label>URL DEL SERVIDOR (RTMPS)</label>
-                  <div className="value-box">{credentials.rtmpsUrl}</div>
+                  <label>SERVIDOR RTMP</label>
+                  <div className="value-box">{PENTIUM_RTMP_URL}</div>
                 </div>
 
                 <div className="cred-field">
-                  <label>CLAVE DE TRANSMISIÓN (SECRET)</label>
-                  <div className="value-box secret">{credentials.streamKey}</div>
+                  <label>TU CLAVE PRIVADA (SECRET)</label>
+                  <div className="value-box secret">{streamData.stream_key}</div>
                 </div>
 
                 <div className="share-info">
-                  <label>URL DE TU SALA PÚBLICA</label>
-                  <div className="url-badge">chillstream.com/stream/{name.toLowerCase()}</div>
+                  <label>DIRECCIÓN DE TU SALA</label>
+                  <div className="url-badge" onClick={() => window.location.href = `/stream/${profile.username}`}>
+                    localhost:3001/stream/{profile.username}
+                  </div>
                 </div>
 
-                <button className="btn-new" onClick={() => setCredentials(null)}>Generar otra sala</button>
+                <div className="warning-box">
+                  <p>⚠️ <strong>Aviso de Seguridad:</strong> Tu clave es como tu contraseña. No la muestres en pantalla durante tus transmisiones.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-zinc-500 mb-6 font-bold uppercase tracking-widest">Sincronizando con Pentium Server...</p>
+                <button onClick={() => window.location.reload()} className="bg-blue-600 px-8 py-4 rounded-xl font-black text-xs">REFRESCAR ESTADO</button>
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* LADO DERECHO: INSTRUCCIONES */}
-          <div className="card side-card">
-            <h3>Guía Rápida para OBS</h3>
-            <div className="steps">
-              <div className="step">
-                <div className="num">1</div>
-                <p>Abre <strong>OBS Studio</strong> en tu computadora.</p>
-              </div>
-              <div className="step">
-                <div className="num">2</div>
-                <p>Ve a <strong>Ajustes &gt; Emisión</strong>.</p>
-              </div>
-              <div className="step">
-                <div className="num">3</div>
-                <p>En Servicio elige <strong>Personalizado</strong>.</p>
-              </div>
-              <div className="step">
-                <div className="num">4</div>
-                <p>Pega el <strong>Servidor</strong> y la <strong>Clave</strong> que generaste aquí.</p>
-              </div>
-              <div className="step">
-                <div className="num">5</div>
-                <p>¡Dale a <strong>Iniciar Transmisión</strong> y ya estás en vivo!</p>
-              </div>
+          {/* LADO DERECHO: GUÍA RÁPIDA */}
+          <Card variant="side">
+            <h3 className="side-title">Configuración en 1 Minuto</h3>
+            <div className="steps-container">
+              <Step number="1">Abre <strong>OBS Studio</strong> en tu PC.</Step>
+              <Step number="2">Ve a <strong>Ajustes &gt; Emisión</strong>.</Step>
+              <Step number="3">Tipo de Servicio: <strong>Personalizado</strong>.</Step>
+              <Step number="4">Pega el <strong>Servidor</strong> y tu <strong>Clave</strong>.</Step>
+              <Step number="5">¡Dale a <strong>Iniciar</strong> y el mundo te verá!</Step>
             </div>
-          </div>
+            
+            <div className="pro-tip">
+              <p>💡 <strong>Pro Tip:</strong> Para mejor calidad, usa un bitrate de 4500kbps y encoder x264 en OBS.</p>
+            </div>
+          </Card>
         </div>
       </main>
 
+      <Footer />
+
       <style jsx global>{`
-        :root { --primary: #0070f3; --bg: #050505; --card: #111; --text: #fff; --border: rgba(255,255,255,0.08); }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+        :root { --primary: #3b82f6; --bg: #050505; --text: #fff; }
+        .page-wrapper { min-height: 100vh; background: var(--bg); color: var(--text); }
+        .content { max-width: 1200px; margin: 0 auto; padding: 8rem 2rem; }
+        .setup-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 3rem; }
+
+        .info-badge { background: rgba(34, 197, 94, 0.1); color: #22c55e; padding: 8px 16px; border-radius: 10px; font-size: 10px; font-weight: 900; letter-spacing: 2px; display: inline-block; margin-bottom: 2rem; border: 1px solid rgba(34, 197, 94, 0.2); }
+
+        .cred-field { margin-bottom: 2rem; }
+        label { font-size: 0.65rem; font-weight: 900; color: #555; letter-spacing: 2px; display: block; margin-bottom: 12px; }
+        .value-box { background: #000; padding: 20px; border-radius: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; border: 1px solid #1a1a1a; color: var(--primary); }
+        .value-box.secret { color: #ef4444; border-color: rgba(239, 68, 68, 0.1); }
         
-        .navbar { height: 60px; display: flex; align-items: center; padding: 0 5%; border-bottom: 1px solid var(--border); }
-        .logo { font-weight: 900; color: var(--primary); cursor: pointer; }
-
-        .content { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; }
+        .url-badge { background: rgba(59, 130, 246, 0.1); color: var(--primary); padding: 18px; border-radius: 16px; font-weight: 900; border: 1px solid rgba(59, 130, 246, 0.2); text-align: center; cursor: pointer; transition: 0.3s; }
+        .url-badge:hover { background: rgba(59, 130, 246, 0.2); transform: scale(1.02); }
         
-        .setup-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2rem; }
+        .warning-box { background: rgba(239, 68, 68, 0.05); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(239, 68, 68, 0.1); margin-top: 2rem; }
+        .warning-box p { margin: 0; color: #666; font-size: 0.75rem; line-height: 1.6; }
 
-        .card { background: var(--card); padding: 2.5rem; border-radius: 24px; border: 1px solid var(--border); }
-        h1 { font-size: 2rem; margin-bottom: 10px; }
-        p { color: #666; font-size: 0.9rem; }
-
-        .form { margin-top: 2rem; }
-        input { width: 100%; background: #000; border: 1px solid #222; padding: 18px; border-radius: 12px; color: #fff; font-size: 1rem; margin-bottom: 1rem; outline: none; transition: 0.3s; }
-        input:focus { border-color: var(--primary); }
-        button { width: 100%; background: var(--primary); color: #fff; border: none; padding: 18px; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.3s; }
-        button:disabled { opacity: 0.5; }
-
-        /* CREDENCIALES */
-        .success-header { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; }
-        .cred-field { margin-bottom: 1.5rem; }
-        label { font-size: 0.65rem; font-weight: 900; color: #444; letter-spacing: 1px; display: block; margin-bottom: 8px; }
-        .value-box { background: #000; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 0.85rem; border: 1px solid #222; word-break: break-all; }
-        .value-box.secret { color: #ff4d4d; }
-        .url-badge { background: rgba(0,112,243,0.1); color: var(--primary); padding: 10px; border-radius: 8px; font-weight: bold; border: 1px solid rgba(0,112,243,0.2); }
-        .btn-new { background: #222; margin-top: 2rem; }
-
-        /* STEPS */
-        .steps { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem; }
-        .step { display: flex; gap: 15px; align-items: flex-start; }
-        .num { background: var(--primary); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; }
-        .step p { margin: 0; color: #888; font-size: 0.85rem; line-height: 1.4; }
-        .step p strong { color: #fff; }
-
-        .error { color: #ff4d4d; font-size: 0.8rem; margin-top: 15px; }
-        .fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .pro-tip { background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 1rem; margin-top: 3rem; font-size: 0.8rem; color: #888; }
 
         @media (max-width: 900px) {
           .setup-grid { grid-template-columns: 1fr; }
-          .side-card { order: 2; }
         }
       `}</style>
     </div>
