@@ -114,5 +114,16 @@ export const profileService = {
 
     if (error) throw error;
     return { success: true };
+  },
+
+  // Ejecutar donación real de Chill Flow
+  async sendDonation(streamerUsername, amount) {
+    const { error } = await supabase.rpc('donate_flow', {
+      streamer_username: streamerUsername,
+      amount_to_send: amount
+    });
+
+    if (error) throw error;
+    return { success: true };
   }
 };
