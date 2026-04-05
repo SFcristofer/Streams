@@ -58,6 +58,9 @@ export default function Navbar({ showActions = false, isLive = false }) {
         <div className="flex items-center gap-4">
           {!user ? (
             <>
+              <button className="text-[10px] font-black text-zinc-500 hover:text-white transition-colors uppercase tracking-widest" onClick={() => router.push('/tienda')}>
+                🛍️ Marketplace
+              </button>
               <button className="text-xs font-bold text-zinc-400 hover:text-white transition-colors" onClick={() => router.push('/empezar')}>
                 🚀 Quiero ser Streamer
               </button>
@@ -67,6 +70,9 @@ export default function Navbar({ showActions = false, isLive = false }) {
             </>
           ) : (
             <div className="flex items-center gap-4">
+              <button onClick={() => router.push('/tienda')} className="hidden md:block text-[10px] font-black text-zinc-500 hover:text-white transition-colors uppercase tracking-widest">
+                🛍️ Tienda
+              </button>
               {profile?.role === 'admin' && (
                 <button onClick={() => router.push('/admin')} className="hidden md:block bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 px-4 py-2 rounded-lg text-[10px] font-black tracking-widest text-blue-400 transition-all uppercase">
                   Panel Admin 🛠️
